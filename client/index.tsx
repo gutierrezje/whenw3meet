@@ -1,5 +1,5 @@
 import { Link, Route, Router, Routes, useMutation, useQuery, useParams, useNavigate } from "lakebed/client";
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 
 export type Event = {
   id: string;
@@ -220,6 +220,17 @@ function EventPage() {
   const [selectedHeatmapSlot, setSelectedHeatmapSlot] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    setSelectedHeatmapSlot(null);
+    setCurrentUser(null);
+    setLoginName("");
+    setLoginPin("");
+    setLoginError(null);
+    setPaintedSlots({});
+    setSaveSuccess(false);
+    setSaveError(null);
+  }, [eventId]);
+
   if (events === undefined || availabilities === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
@@ -311,10 +322,14 @@ function EventPage() {
   }
 
   // Copy URL to Clipboard
-  function handleCopyLink() {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function handleCopyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+    }
   }
 
   // Grid Drag/Touch controls
@@ -388,6 +403,7 @@ function EventPage() {
   let totalCount = 0;
   const availableUsers: string[] = [];
   const busyUsers: string[] = [];
+  const noResponseUsers: string[] = [];
 
   if (activeDetailSlot) {
     const [slotDate, slotTime] = activeDetailSlot.split("T");
@@ -404,14 +420,16 @@ function EventPage() {
     totalCount = eventAvails.length;
 
     eventAvails.forEach((a) => {
-      let isAvailable = false;
+      let slotsMap: Record<string, boolean> = {};
       try {
-        const slotsMap = JSON.parse(a.slots);
-        isAvailable = !!slotsMap[activeDetailSlot];
+        slotsMap = JSON.parse(a.slots);
       } catch (err) {
-        isAvailable = false;
+        slotsMap = {};
       }
-      if (isAvailable) {
+      
+      if (Object.keys(slotsMap).length === 0) {
+        noResponseUsers.push(a.userName);
+      } else if (slotsMap[activeDetailSlot]) {
         availableUsers.push(a.userName);
       } else {
         busyUsers.push(a.userName);
@@ -675,6 +693,19 @@ function EventPage() {
                   )}
                 </div>
               </div>
+
+              {noResponseUsers.length > 0 && (
+                <div>
+                  <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">No Response ({noResponseUsers.length})</span>
+                  <div className="flex flex-wrap gap-1">
+                    {noResponseUsers.map((u) => (
+                      <span key={u} className="text-[10px] text-zinc-500 bg-zinc-950/40 border border-zinc-900 rounded-full px-2.5 py-0.5 font-medium">
+                        {u}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
