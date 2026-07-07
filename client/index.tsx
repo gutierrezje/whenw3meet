@@ -402,8 +402,7 @@ function EventPage() {
   let availableCount = 0;
   let totalCount = 0;
   const availableUsers: string[] = [];
-  const busyUsers: string[] = [];
-  const noResponseUsers: string[] = [];
+  const unavailableUsers: string[] = [];
 
   if (activeDetailSlot) {
     const [slotDate, slotTime] = activeDetailSlot.split("T");
@@ -427,12 +426,13 @@ function EventPage() {
         slotsMap = {};
       }
       
-      if (Object.keys(slotsMap).length === 0) {
-        noResponseUsers.push(a.userName);
-      } else if (slotsMap[activeDetailSlot]) {
+      // Note: Because availability records are only inserted when a user explicitly
+      // clicks "Save", any record in the database represents a completed response.
+      // If slotsMap is empty or lacks this slot key, they are unavailable.
+      if (slotsMap[activeDetailSlot]) {
         availableUsers.push(a.userName);
       } else {
-        busyUsers.push(a.userName);
+        unavailableUsers.push(a.userName);
       }
     });
     availableCount = availableUsers.length;
@@ -680,10 +680,10 @@ function EventPage() {
               </div>
 
               <div>
-                <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Unavailable ({busyUsers.length})</span>
+                <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Unavailable ({unavailableUsers.length})</span>
                 <div className="flex flex-wrap gap-1">
-                  {busyUsers.length > 0 ? (
-                    busyUsers.map((u) => (
+                  {unavailableUsers.length > 0 ? (
+                    unavailableUsers.map((u) => (
                       <span key={u} className="text-[10px] text-zinc-400 bg-zinc-900/50 border border-zinc-800 rounded-full px-2.5 py-0.5 font-medium">
                         {u}
                       </span>
@@ -693,19 +693,6 @@ function EventPage() {
                   )}
                 </div>
               </div>
-
-              {noResponseUsers.length > 0 && (
-                <div>
-                  <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">No Response ({noResponseUsers.length})</span>
-                  <div className="flex flex-wrap gap-1">
-                    {noResponseUsers.map((u) => (
-                      <span key={u} className="text-[10px] text-zinc-500 bg-zinc-950/40 border border-zinc-900 rounded-full px-2.5 py-0.5 font-medium">
-                        {u}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <button
