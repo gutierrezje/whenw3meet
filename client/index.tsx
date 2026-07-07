@@ -10,6 +10,15 @@ export type Event = {
   createdAt: string;
 };
 
+export type Availability = {
+  id: string;
+  eventId: string;
+  userName: string;
+  passwordHash: string;
+  slots: string; // JSON string of YYYY-MM-DDTHH:MM -> boolean map
+  createdAt: string;
+};
+
 function CreateEventPage() {
   const createEvent = useMutation<[name: string, dates: string, startTime: string, endTime: string], string>("createEvent");
   const navigate = useNavigate();
@@ -196,6 +205,19 @@ function EventPage() {
     { success: boolean; error?: string }
   >("saveAvailability");
 
+  const [currentUser, setCurrentUser] = useState<{ name: string; pin: string } | null>(null);
+  const [loginName, setLoginName] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [paintedSlots, setPaintedSlots] = useState<Record<string, boolean>>({});
+  const [isDragSelecting, setIsDragSelecting] = useState<boolean | null>(null); // true = selecting, false = deselecting
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"paint" | "heatmap">("paint");
+
   if (events === undefined || availabilities === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
@@ -224,19 +246,6 @@ function EventPage() {
     formattedDates = [];
   }
 
-  const [currentUser, setCurrentUser] = useState<{ name: string; pin: string } | null>(null);
-  const [loginName, setLoginName] = useState("");
-  const [loginPin, setLoginPin] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  const [paintedSlots, setPaintedSlots] = useState<Record<string, boolean>>({});
-  const [isDragSelecting, setIsDragSelecting] = useState<boolean | null>(null); // true = selecting, false = deselecting
-  const [isMouseDown, setIsMouseDown] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"paint" | "heatmap">("paint");
-
   const slots = generateTimeSlots(event.startTime, event.endTime);
 
   // Authentication submission
@@ -246,7 +255,7 @@ function EventPage() {
     setLoginError(null);
 
     const existing = availabilities?.find(
-      (a) => a.eventId === eventId && a.userName.toLowerCase() === loginName.trim().toLowerCase()
+      (a) => a.eventId === eventId && a.userName === loginName.trim()
     );
 
     if (existing) {
@@ -351,7 +360,8 @@ function EventPage() {
     const touch = e.touches[0];
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
     if (!element) return;
-    const slotKey = element.getAttribute("data-time-slot");
+    const cell = element.closest("[data-time-slot]");
+    const slotKey = cell ? cell.getAttribute("data-time-slot") : null;
     if (slotKey) {
       handleDragOver(slotKey);
     }
