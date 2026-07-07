@@ -10,6 +10,15 @@ export type Event = {
   createdAt: string;
 };
 
+export type Availability = {
+  id: string;
+  eventId: string;
+  userName: string;
+  passwordHash: string;
+  slots: string; // JSON string of YYYY-MM-DDTHH:MM -> boolean map
+  createdAt: string;
+};
+
 function CreateEventPage() {
   const createEvent = useMutation<[name: string, dates: string, startTime: string, endTime: string], string>("createEvent");
   const navigate = useNavigate();
@@ -170,11 +179,46 @@ function CreateEventPage() {
   );
 }
 
+function generateTimeSlots(start: string, end: string): string[] {
+  const slots: string[] = [];
+  const [startH, startM] = start.split(":").map(Number);
+  const [endH, endM] = end.split(":").map(Number);
+  
+  let currentMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+
+  while (currentMin < endMin) {
+    const h = String(Math.floor(currentMin / 60)).padStart(2, "0");
+    const m = String(currentMin % 60).padStart(2, "0");
+    slots.push(`${h}:${m}`);
+    currentMin += 30;
+  }
+  return slots;
+}
+
 function EventPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const events = useQuery<Event[] | undefined>("events");
+  const availabilities = useQuery<Availability[] | undefined>("availabilities");
+  const saveAvailability = useMutation<
+    [eventId: string, userName: string, passwordHash: string, slots: string],
+    { success: boolean; error?: string }
+  >("saveAvailability");
 
-  if (events === undefined) {
+  const [currentUser, setCurrentUser] = useState<{ name: string; pin: string } | null>(null);
+  const [loginName, setLoginName] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [paintedSlots, setPaintedSlots] = useState<Record<string, boolean>>({});
+  const [isDragSelecting, setIsDragSelecting] = useState<boolean | null>(null); // true = selecting, false = deselecting
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"paint" | "heatmap">("paint");
+
+  if (events === undefined || availabilities === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
         <p className="text-zinc-500 text-sm">Loading event details...</p>
@@ -195,49 +239,324 @@ function EventPage() {
     );
   }
 
-  let formattedDates = [];
+  let formattedDates: string[] = [];
   try {
     formattedDates = JSON.parse(event.dates);
   } catch (e) {
     formattedDates = [];
   }
 
-  return (
-    <div className="flex flex-col items-center px-4 py-6">
-      <div className="w-full max-w-[400px] bg-[#121214] border border-zinc-800 rounded-2xl p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-zinc-100">{event.name}</h2>
-          <span className="text-xs bg-zinc-800 text-zinc-400 px-2.5 py-1 rounded-full font-mono">
-            {event.startTime} - {event.endTime}
-          </span>
-        </div>
-        <p className="text-xs text-zinc-500 mb-6">
-          Dates: {formattedDates.join(", ")}
-        </p>
+  const slots = generateTimeSlots(event.startTime, event.endTime);
 
-        {/* Login Form Skeleton */}
-        <div className="bg-[#18181c] border border-zinc-800/80 rounded-xl p-4 mb-6">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Sign in to set availability</h3>
-          <div className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="Your Name" 
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 focus:outline-none"
-            />
-            <input 
-              type="password" 
-              placeholder="PIN" 
-              className="w-16 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-200 text-center focus:outline-none"
-            />
-            <button className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-1.5 rounded-lg">
-              Go
+  // Authentication submission
+  function handleLogin(e: SubmitEvent) {
+    e.preventDefault();
+    if (!loginName.trim() || !loginPin.trim()) return;
+    setLoginError(null);
+
+    const existing = availabilities?.find(
+      (a) => a.eventId === eventId && a.userName.toLowerCase() === loginName.trim().toLowerCase()
+    );
+
+    if (existing) {
+      if (existing.passwordHash !== loginPin.trim()) {
+        setLoginError("Incorrect PIN for this username");
+        return;
+      }
+      setCurrentUser({ name: existing.userName, pin: loginPin.trim() });
+      try {
+        setPaintedSlots(JSON.parse(existing.slots));
+      } catch (err) {
+        setPaintedSlots({});
+      }
+    } else {
+      setCurrentUser({ name: loginName.trim(), pin: loginPin.trim() });
+      setPaintedSlots({});
+    }
+  }
+
+  function handleSignOut() {
+    setCurrentUser(null);
+    setLoginName("");
+    setLoginPin("");
+    setPaintedSlots({});
+  }
+
+  // Save Availability to database
+  async function handleSave() {
+    if (!currentUser) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+    try {
+      const res = await saveAvailability(
+        eventId,
+        currentUser.name,
+        currentUser.pin,
+        JSON.stringify(paintedSlots)
+      );
+      if (res.success) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setSaveError(res.error || "Failed to save availability");
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save availability");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Grid Drag/Touch controls
+  function handleStartSelection(slotKey: string) {
+    if (!currentUser || activeTab !== "paint") return;
+    const nextState = !paintedSlots[slotKey];
+    setIsDragSelecting(nextState);
+    setPaintedSlots((prev) => ({
+      ...prev,
+      [slotKey]: nextState,
+    }));
+  }
+
+  function handleDragOver(slotKey: string) {
+    if (isDragSelecting === null || !currentUser || activeTab !== "paint") return;
+    setPaintedSlots((prev) => {
+      if (prev[slotKey] === isDragSelecting) return prev;
+      return {
+        ...prev,
+        [slotKey]: isDragSelecting,
+      };
+    });
+  }
+
+  // Mouse handlers
+  function onMouseDownCell(e: MouseEvent, slotKey: string) {
+    e.preventDefault();
+    setIsMouseDown(true);
+    handleStartSelection(slotKey);
+  }
+
+  function onMouseEnterCell(slotKey: string) {
+    if (isMouseDown) {
+      handleDragOver(slotKey);
+    }
+  }
+
+  function onMouseUpGrid() {
+    setIsMouseDown(false);
+    setIsDragSelecting(null);
+  }
+
+  // Touch handlers
+  function onTouchStartCell(e: TouchEvent, slotKey: string) {
+    if (e.cancelable) e.preventDefault();
+    handleStartSelection(slotKey);
+  }
+
+  function onTouchMoveGrid(e: TouchEvent) {
+    if (isDragSelecting === null || !currentUser || activeTab !== "paint") return;
+    if (e.cancelable) e.preventDefault();
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!element) return;
+    const cell = element.closest("[data-time-slot]");
+    const slotKey = cell ? cell.getAttribute("data-time-slot") : null;
+    if (slotKey) {
+      handleDragOver(slotKey);
+    }
+  }
+
+  function onTouchEndGrid() {
+    setIsDragSelecting(null);
+  }
+
+  return (
+    <div className="flex flex-col items-center px-4 py-4 select-none">
+      <div className="w-full max-w-[400px] bg-[#121214] border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+        
+        {/* Toggle Switch */}
+        <div className="bg-zinc-950 p-1 rounded-xl flex mb-5 border border-zinc-900">
+          <button
+            onClick={() => setActiveTab("paint")}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+              activeTab === "paint" ? "bg-zinc-900 text-zinc-100 shadow" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+            type="button"
+          >
+            My Availability
+          </button>
+          <button
+            onClick={() => setActiveTab("heatmap")}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+              activeTab === "heatmap" ? "bg-zinc-900 text-zinc-100 shadow" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+            type="button"
+          >
+            Group Heatmap
+          </button>
+        </div>
+
+        {/* Title Card */}
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-100 leading-tight">{event.name}</h2>
+            <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider font-semibold">
+              {formattedDates.length > 0 ? `${formattedDates[0]} - ${formattedDates[formattedDates.length - 1]}` : ""}
+            </p>
+          </div>
+          {currentUser && (
+            <button 
+              onClick={handleSignOut}
+              className="text-[10px] bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-lg"
+              type="button"
+            >
+              Sign Out
+            </button>
+          )}
+        </div>
+
+        {/* Login Form Panel */}
+        {!currentUser && (
+          <div className="bg-[#18181c] border border-zinc-800/80 rounded-xl p-4 mb-5">
+            <h3 className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-3">Sign in to edit availability</h3>
+            <form onSubmit={(e) => void handleLogin(e)} className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Name" 
+                value={loginName}
+                onInput={(e) => setLoginName((e.target as HTMLInputElement).value)}
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                required
+              />
+              <input 
+                type="password" 
+                placeholder="PIN" 
+                value={loginPin}
+                onInput={(e) => setLoginPin((e.target as HTMLInputElement).value)}
+                maxLength={4}
+                className="w-16 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-xs text-zinc-200 text-center placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                required
+              />
+              <button 
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors"
+              >
+                Go
+              </button>
+            </form>
+            {loginError && (
+              <p role="alert" aria-live="assertive" className="text-red-500 text-[10px] mt-2 font-medium">{loginError}</p>
+            )}
+          </div>
+        )}
+
+        {/* Sign in status */}
+        {currentUser && (
+          <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl px-4 py-2.5 mb-5 flex items-center justify-between">
+            <span className="text-[11px] text-zinc-400">
+              Editing as: <strong className="text-zinc-200">{currentUser.name}</strong>
+            </span>
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          </div>
+        )}
+
+        {/* Info panel when not logged in */}
+        {!currentUser && activeTab === "paint" && (
+          <div className="bg-zinc-950/30 border border-dashed border-zinc-800 rounded-xl py-3 px-4 mb-5 text-center text-zinc-500 text-xs font-medium">
+            🔒 Enter your Name and PIN above to paint your schedule.
+          </div>
+        )}
+
+        {/* Grid Container */}
+        <div 
+          onMouseUp={onMouseUpGrid}
+          onMouseLeave={onMouseUpGrid}
+          className="bg-zinc-950/20 border border-zinc-900 rounded-xl p-3"
+        >
+          {activeTab === "paint" ? (
+            <div className="grid grid-cols-[60px_1fr] gap-1">
+              {/* Header dates row */}
+              <div></div>
+              <div className="grid grid-flow-col gap-1 text-center">
+                {formattedDates.map((dateStr) => {
+                  const d = new Date(dateStr + "T00:00:00");
+                  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 3).toUpperCase();
+                  const dayNum = d.getDate();
+                  return (
+                    <div key={dateStr} className="text-zinc-500 text-[9px] uppercase font-bold py-1">
+                      <div>{weekday}</div>
+                      <div className="text-zinc-300 text-xs font-bold">{dayNum}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Grid rows */}
+              {slots.map((slotTime) => {
+                const [h, m] = slotTime.split(":").map(Number);
+                const period = h >= 12 ? "PM" : "AM";
+                const h12 = h % 12 === 0 ? 12 : h % 12;
+                const displayTime = `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+
+                return (
+                  <div key={slotTime} className="contents">
+                    <div className="text-[9px] font-mono text-zinc-500 text-right pr-2 self-center">
+                      {displayTime}
+                    </div>
+                    <div className="grid grid-flow-col gap-1">
+                      {formattedDates.map((dateStr) => {
+                        const cellKey = `${dateStr}T${slotTime}`;
+                        const isSelected = !!paintedSlots[cellKey];
+                        return (
+                          <div
+                            key={cellKey}
+                            data-time-slot={cellKey}
+                            onMouseDown={(e) => onMouseDownCell(e, cellKey)}
+                            onMouseEnter={() => onMouseEnterCell(cellKey)}
+                            onTouchStart={(e) => onTouchStartCell(e, cellKey)}
+                            onTouchMove={onTouchMoveGrid}
+                            onTouchEnd={onTouchEndGrid}
+                            className={`h-8 rounded-md border border-zinc-800/80 cursor-pointer transition-colors ${
+                              isSelected 
+                                ? "bg-emerald-500 border-emerald-400/30 shadow-inner" 
+                                : "bg-zinc-950/40 hover:bg-zinc-900/50"
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-zinc-500 text-xs font-medium">
+              📊 Heatmap results will be wired up in Step 4.
+            </div>
+          )}
+        </div>
+
+        {/* Save button and alerts */}
+        {activeTab === "paint" && currentUser && (
+          <div className="mt-4">
+            {saveError && (
+              <p role="alert" aria-live="assertive" className="text-red-500 text-xs text-center mb-3 font-medium">{saveError}</p>
+            )}
+            <button
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+            >
+              {saving ? "Saving..." : saveSuccess ? "✓ Saved Availability" : "Save Availability"}
             </button>
           </div>
-        </div>
+        )}
 
-        <div className="border-t border-zinc-800/80 pt-4 text-center">
-          <p className="text-xs text-zinc-500">Availability grid & heatmap interface (Step 3 & 4)</p>
-        </div>
       </div>
     </div>
   );
