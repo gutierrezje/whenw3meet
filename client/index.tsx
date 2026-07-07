@@ -743,14 +743,32 @@ function EventPage() {
 }
 
 export function App() {
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "#0c0c0e");
+  }, []);
+
   return (
     <Router>
       <main 
-        className="min-h-screen text-white flex flex-col relative overflow-hidden"
+        className="min-h-screen text-white flex flex-col relative"
         style={{
           background: "radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 45%), radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 45%), #09090b"
         }}
       >
+        <style>{`
+          html, body {
+            background-color: #09090b !important;
+            margin: 0;
+            padding: 0;
+          }
+        `}</style>
+
         {/* Header matching mockup */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900/60 bg-[#0c0c0e]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
