@@ -15,21 +15,30 @@ function CreateEventPage() {
   const navigate = useNavigate();
 
   const [eventName, setEventName] = useState("");
-  const [selectedDates, setSelectedDates] = useState<string[]>(["2023-10-25"]); // default Wed 25th selected
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("17:00");
-
-  const datesList = [
-    { label: "M", num: 23, dateStr: "2023-10-23" },
-    { label: "T", num: 24, dateStr: "2023-10-24" },
-    { label: "W", num: 25, dateStr: "2023-10-25" },
-    { label: "T", num: 26, dateStr: "2023-10-26" },
-    { label: "F", num: 27, dateStr: "2023-10-27" },
-    { label: "S", num: 28, dateStr: "2023-10-28" },
-    { label: "S", num: 29, dateStr: "2023-10-29" },
-  ];
-
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Generate next 7 days dynamically starting from today
+  const today = new Date();
+  const datesList = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return {
+      label: daysOfWeek[d.getDay()],
+      num: d.getDate(),
+      dateStr: `${yyyy}-${mm}-${dd}`,
+      monthLabel: d.toLocaleString("default", { month: "long", year: "numeric" }),
+    };
+  });
+
+  const [selectedDates, setSelectedDates] = useState<string[]>([datesList[0].dateStr]);
+  const activeMonthLabel = datesList[0].monthLabel;
 
   function toggleDate(dateStr: string) {
     setSelectedDates((prev) =>
@@ -39,13 +48,23 @@ function CreateEventPage() {
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
-    if (!eventName.trim() || selectedDates.length === 0) return;
+    if (!eventName.trim()) {
+      setError("Please enter an event name");
+      return;
+    }
+    if (selectedDates.length === 0) {
+      setError("Please select at least one date");
+      return;
+    }
     setError(null);
+    setSubmitting(true);
     try {
       const eventId = await createEvent(eventName, JSON.stringify(selectedDates), startTime, endTime);
       navigate("/" + eventId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create event");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -56,15 +75,20 @@ function CreateEventPage() {
         <p className="text-xs text-zinc-400 text-center mb-6">Set the details and pick some times for your group to choose from.</p>
         
         {error && (
-          <div className="bg-red-950/50 border border-red-900 text-red-200 text-xs px-3 py-2 rounded-xl text-center mb-4">
+          <div 
+            role="alert" 
+            aria-live="assertive" 
+            className="bg-red-950/50 border border-red-900 text-red-200 text-xs px-3 py-2 rounded-xl text-center mb-4"
+          >
             {error}
           </div>
         )}
 
         <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-5">
           <div>
-            <label className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">Event Name</label>
+            <label htmlFor="event-name" className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">Event Name</label>
             <input 
+              id="event-name"
               type="text" 
               placeholder="Team Sync, Game Night..." 
               value={eventName}
@@ -76,8 +100,8 @@ function CreateEventPage() {
 
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Select Dates</label>
-              <span className="text-[10px] uppercase font-bold text-indigo-400">October 2023</span>
+              <span className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Select Dates</span>
+              <span className="text-[10px] uppercase font-bold text-indigo-400">{activeMonthLabel}</span>
             </div>
             <div className="flex justify-between gap-1">
               {datesList.map((item) => {
@@ -103,8 +127,9 @@ function CreateEventPage() {
 
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">Start Time</label>
+              <label htmlFor="start-time" className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">Start Time</label>
               <select 
+                id="start-time"
                 value={startTime}
                 onChange={(e) => setStartTime((e.target as HTMLSelectElement).value)}
                 className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
@@ -115,8 +140,9 @@ function CreateEventPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">End Time</label>
+              <label htmlFor="end-time" className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">End Time</label>
               <select 
+                id="end-time"
                 value={endTime}
                 onChange={(e) => setEndTime((e.target as HTMLSelectElement).value)}
                 className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
@@ -130,9 +156,10 @@ function CreateEventPage() {
 
           <button 
             type="submit" 
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 mt-2 transition-colors shadow-lg shadow-indigo-600/20"
+            disabled={submitting}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 mt-2 transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Event <span className="text-base">→</span>
+            {submitting ? "Creating..." : "Create Event"} <span className="text-base">→</span>
           </button>
         </form>
       </div>
