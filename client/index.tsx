@@ -46,10 +46,21 @@ function CreateEventPage() {
     };
   });
 
-  const [selectedDates, setSelectedDates] = useState<string[]>([datesList[0].dateStr]);
+  // Start with no dates pre-selected
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const startMonth = datesList[0].monthLabel;
   const endMonth = datesList[datesList.length - 1].monthLabel;
   const activeMonthLabel = startMonth === endMonth ? startMonth : `${startMonth} - ${endMonth}`;
+
+  // Generate all 24 hours in 12-hour AM/PM format (like when2meet)
+  const timeOptions = Array.from({ length: 24 }).map((_, i) => {
+    const h = i;
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    const timeVal = `${String(h).padStart(2, "0")}:00`;
+    const timeLabel = `${h12}:00 ${period}`;
+    return { val: timeVal, label: timeLabel };
+  });
 
   function toggleDate(dateStr: string) {
     setSelectedDates((prev) =>
@@ -65,6 +76,10 @@ function CreateEventPage() {
     }
     if (selectedDates.length === 0) {
       setError("Please select at least one date");
+      return;
+    }
+    if (startTime >= endTime) {
+      setError("End time must be after start time");
       return;
     }
     setError(null);
@@ -145,8 +160,8 @@ function CreateEventPage() {
                 onChange={(e) => setStartTime((e.target as HTMLSelectElement).value)}
                 className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
               >
-                {["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"].map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                {timeOptions.map((t) => (
+                  <option key={t.val} value={t.val}>{t.label}</option>
                 ))}
               </select>
             </div>
@@ -158,8 +173,8 @@ function CreateEventPage() {
                 onChange={(e) => setEndTime((e.target as HTMLSelectElement).value)}
                 className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
               >
-                {["16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"].map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                {timeOptions.map((t) => (
+                  <option key={t.val} value={t.val}>{t.label}</option>
                 ))}
               </select>
             </div>
