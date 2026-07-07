@@ -571,7 +571,7 @@ function EventPage() {
         <div 
           onMouseUp={onMouseUpGrid}
           onMouseLeave={onMouseUpGrid}
-          className="bg-zinc-950/20 border border-zinc-900 rounded-xl p-3"
+          className="bg-zinc-950/20 border border-zinc-900 rounded-xl p-3 touch-none"
         >
           <div className="grid grid-cols-[60px_1fr] gap-1">
             {/* Header dates row */}
@@ -744,13 +744,21 @@ function EventPage() {
 
 export function App() {
   useEffect(() => {
-    let meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "theme-color");
-      document.head.appendChild(meta);
+    let metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (!metaTheme) {
+      metaTheme = document.createElement("meta");
+      metaTheme.setAttribute("name", "theme-color");
+      document.head.appendChild(metaTheme);
     }
-    meta.setAttribute("content", "#0a0a0c");
+    metaTheme.setAttribute("content", "#0a0a0c");
+
+    let metaViewport = document.querySelector('meta[name="viewport"]');
+    if (!metaViewport) {
+      metaViewport = document.createElement("meta");
+      metaViewport.setAttribute("name", "viewport");
+      document.head.appendChild(metaViewport);
+    }
+    metaViewport.setAttribute("content", "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no");
   }, []);
 
   return (
