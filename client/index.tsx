@@ -769,6 +769,32 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const handleLocationChange = () => {
+      setPath(window.location.pathname);
+    };
+
+    window.addEventListener("popstate", handleLocationChange);
+
+    const originalPushState = window.history.pushState;
+    window.history.pushState = function (...args) {
+      originalPushState.apply(this, args);
+      handleLocationChange();
+    };
+
+    const originalReplaceState = window.history.replaceState;
+    window.history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args);
+      handleLocationChange();
+    };
+
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    };
+  }, []);
+
+  useEffect(() => {
     if (headerShareCopied) {
       const timer = setTimeout(() => setHeaderShareCopied(false), 2000);
       return () => clearTimeout(timer);
@@ -787,7 +813,7 @@ export function App() {
   const isEventPage = path !== "/";
 
   return (
-    <Router onChange={(e) => setPath(e.url)}>
+    <Router>
       <main className="min-h-screen bg-[#0a0a0c] text-white flex flex-col relative overflow-x-hidden">
         <style>{`
           html, body {
