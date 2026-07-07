@@ -234,6 +234,7 @@ function EventPage() {
   const [activeTab, setActiveTab] = useState<"paint" | "heatmap">("paint");
   const [selectedHeatmapSlot, setSelectedHeatmapSlot] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showNotFound, setShowNotFound] = useState(false);
 
   useEffect(() => {
     setSelectedHeatmapSlot(null);
@@ -244,6 +245,12 @@ function EventPage() {
     setPaintedSlots({});
     setSaveSuccess(false);
     setSaveError(null);
+    setShowNotFound(false);
+
+    const timer = setTimeout(() => {
+      setShowNotFound(true);
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [eventId]);
 
   if (events === undefined || availabilities === undefined) {
@@ -257,6 +264,13 @@ function EventPage() {
   const event = events.find((e) => e.id === eventId);
 
   if (!event) {
+    if (!showNotFound) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh]">
+          <p className="text-zinc-500 text-sm">Loading event details...</p>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
         <p className="text-red-500 text-sm font-semibold">Event not found</p>
