@@ -744,6 +744,7 @@ function EventPage() {
 
 export function App() {
   const [headerShareCopied, setHeaderShareCopied] = useState(false);
+  const [path, setPath] = useState(window.location.pathname);
 
   useEffect(() => {
     let metaTheme = document.querySelector('meta[name="theme-color"]');
@@ -779,8 +780,10 @@ export function App() {
     }
   }
 
+  const isEventPage = path !== "/";
+
   return (
-    <Router>
+    <Router onChange={(e) => setPath(e.url)}>
       <main className="min-h-screen bg-[#0a0a0c] text-white flex flex-col relative overflow-x-hidden">
         <style>{`
           html, body {
@@ -793,32 +796,38 @@ export function App() {
         {/* Header matching mockup */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900/60 bg-[#0c0c0e]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-zinc-400 hover:text-zinc-200 flex items-center" title="Go Home">
-              {/* Home Icon */}
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V9.753a1 1 0 00-.293-.707L12.707 3.046a1 1 0 00-1.414 0L5.293 9.046A1 1 0 005 9.753V21M19 21h-4.5v-5.5a1 1 0 00-1-1h-3a1 1 0 00-1 1V21H5m14 0h-4.5" />
-              </svg>
-            </Link>
+            {isEventPage ? (
+              <Link 
+                to="/" 
+                className="bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-colors uppercase tracking-wider"
+                title="Create New Event"
+              >
+                New
+              </Link>
+            ) : (
+              <div className="w-[36px]" />
+            )}
             <Link to="/" className="text-sm font-bold tracking-widest text-zinc-200 hover:text-white uppercase">
               WHENW3MEET
             </Link>
           </div>
-          <button 
-            onClick={handleHeaderShare}
-            className="text-zinc-400 hover:text-zinc-200 relative flex items-center" 
-            type="button"
-            title="Copy Share Link"
-          >
-            {headerShareCopied && (
-              <span className="absolute right-0 bottom-full mb-2 bg-zinc-950 border border-zinc-800 text-zinc-300 text-[10px] px-2.5 py-1 rounded-lg shadow-2xl whitespace-nowrap z-30 font-medium">
-                Link Copied!
-              </span>
-            )}
-            {/* iOS Share Icon */}
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3-3m0 0l3 3m-3-3v11.25" />
-            </svg>
-          </button>
+          {isEventPage ? (
+            <button 
+              onClick={handleHeaderShare}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-colors shadow relative flex items-center uppercase tracking-wider" 
+              type="button"
+              title="Copy Share Link"
+            >
+              {headerShareCopied && (
+                <span className="absolute right-0 bottom-full mb-2 bg-zinc-950 border border-zinc-800 text-zinc-300 text-[10px] px-2.5 py-1 rounded-lg shadow-2xl whitespace-nowrap z-30 font-medium normal-case tracking-normal">
+                  Link Copied!
+                </span>
+              )}
+              Share
+            </button>
+          ) : (
+            <div className="w-[36px]" />
+          )}
         </header>
 
         <section className="flex-1 flex flex-col justify-center py-6 z-10">
