@@ -255,7 +255,7 @@ function EventPage() {
     setLoginError(null);
 
     const existing = availabilities?.find(
-      (a) => a.eventId === eventId && a.userName === loginName.trim()
+      (a) => a.eventId === eventId && a.userName.toLowerCase() === loginName.trim().toLowerCase()
     );
 
     if (existing) {
