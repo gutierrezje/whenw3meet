@@ -38,7 +38,9 @@ function CreateEventPage() {
   });
 
   const [selectedDates, setSelectedDates] = useState<string[]>([datesList[0].dateStr]);
-  const activeMonthLabel = datesList[0].monthLabel;
+  const startMonth = datesList[0].monthLabel;
+  const endMonth = datesList[datesList.length - 1].monthLabel;
+  const activeMonthLabel = startMonth === endMonth ? startMonth : `${startMonth} - ${endMonth}`;
 
   function toggleDate(dateStr: string) {
     setSelectedDates((prev) =>
