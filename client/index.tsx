@@ -522,7 +522,7 @@ function EventPage() {
                 placeholder="Name" 
                 value={loginName}
                 onInput={(e) => setLoginName((e.target as HTMLInputElement).value)}
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                className="flex-1 min-w-0 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
                 required
               />
               <input 
@@ -743,6 +743,8 @@ function EventPage() {
 }
 
 export function App() {
+  const [headerShareCopied, setHeaderShareCopied] = useState(false);
+
   useEffect(() => {
     let metaTheme = document.querySelector('meta[name="theme-color"]');
     if (!metaTheme) {
@@ -751,15 +753,17 @@ export function App() {
       document.head.appendChild(metaTheme);
     }
     metaTheme.setAttribute("content", "#0a0a0c");
-
-    let metaViewport = document.querySelector('meta[name="viewport"]');
-    if (!metaViewport) {
-      metaViewport = document.createElement("meta");
-      metaViewport.setAttribute("name", "viewport");
-      document.head.appendChild(metaViewport);
-    }
-    metaViewport.setAttribute("content", "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no");
   }, []);
+
+  async function handleHeaderShare() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setHeaderShareCopied(true);
+      setTimeout(() => setHeaderShareCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  }
 
   return (
     <Router>
@@ -775,17 +779,27 @@ export function App() {
         {/* Header matching mockup */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900/60 bg-[#0c0c0e]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
-            <button className="text-zinc-400 hover:text-zinc-200" type="button">
-              {/* Menu Hamburger */}
+            <Link to="/" className="text-zinc-400 hover:text-zinc-200 flex items-center" title="Create New Event">
+              {/* Menu Hamburger acts as Back/Home button */}
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-            </button>
+            </Link>
             <Link to="/" className="text-sm font-bold tracking-widest text-zinc-200 hover:text-white uppercase">
               WHENW3MEET
             </Link>
           </div>
-          <button className="text-zinc-400 hover:text-zinc-200" type="button">
+          <button 
+            onClick={handleHeaderShare}
+            className="text-zinc-400 hover:text-zinc-200 relative" 
+            type="button"
+            title="Copy Share Link"
+          >
+            {headerShareCopied && (
+              <span className="absolute right-0 bottom-full mb-2 bg-zinc-950 border border-zinc-800 text-zinc-300 text-[10px] px-2.5 py-1 rounded-lg shadow-2xl whitespace-nowrap z-30 font-medium">
+                Link Copied!
+              </span>
+            )}
             {/* Share Icon */}
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 10.742l4.636-2.318M8.684 13.258l4.636 2.318M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
