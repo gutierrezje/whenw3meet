@@ -823,7 +823,7 @@ export function App() {
               title="Copy Share Link"
             >
               {headerShareCopied && (
-                <span className="absolute right-0 bottom-full mb-2 bg-zinc-950 border border-zinc-800 text-zinc-300 text-[10px] px-2.5 py-1 rounded-lg shadow-2xl whitespace-nowrap z-30 font-medium normal-case tracking-normal">
+                <span className="absolute right-0 top-full mt-2 bg-zinc-950 border border-zinc-800 text-zinc-300 text-[10px] px-2.5 py-1 rounded-lg shadow-2xl whitespace-nowrap z-30 font-medium normal-case tracking-normal">
                   Link Copied!
                 </span>
               )}
