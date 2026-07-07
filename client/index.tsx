@@ -753,13 +753,27 @@ export function App() {
       document.head.appendChild(metaTheme);
     }
     metaTheme.setAttribute("content", "#0a0a0c");
+
+    let metaViewport = document.querySelector('meta[name="viewport"]');
+    if (!metaViewport) {
+      metaViewport = document.createElement("meta");
+      metaViewport.setAttribute("name", "viewport");
+      document.head.appendChild(metaViewport);
+    }
+    metaViewport.setAttribute("content", "width=device-width, initial-scale=1.0");
   }, []);
+
+  useEffect(() => {
+    if (headerShareCopied) {
+      const timer = setTimeout(() => setHeaderShareCopied(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [headerShareCopied]);
 
   async function handleHeaderShare() {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setHeaderShareCopied(true);
-      setTimeout(() => setHeaderShareCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy link:", err);
     }
@@ -779,10 +793,10 @@ export function App() {
         {/* Header matching mockup */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900/60 bg-[#0c0c0e]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-zinc-400 hover:text-zinc-200 flex items-center" title="Create New Event">
-              {/* Menu Hamburger acts as Back/Home button */}
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+            <Link to="/" className="text-zinc-400 hover:text-zinc-200 flex items-center" title="Go Home">
+              {/* Home Icon */}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V9.753a1 1 0 00-.293-.707L12.707 3.046a1 1 0 00-1.414 0L5.293 9.046A1 1 0 005 9.753V21M19 21h-4.5v-5.5a1 1 0 00-1-1h-3a1 1 0 00-1 1V21H5m14 0h-4.5" />
               </svg>
             </Link>
             <Link to="/" className="text-sm font-bold tracking-widest text-zinc-200 hover:text-white uppercase">
@@ -791,7 +805,7 @@ export function App() {
           </div>
           <button 
             onClick={handleHeaderShare}
-            className="text-zinc-400 hover:text-zinc-200 relative" 
+            className="text-zinc-400 hover:text-zinc-200 relative flex items-center" 
             type="button"
             title="Copy Share Link"
           >
@@ -800,9 +814,9 @@ export function App() {
                 Link Copied!
               </span>
             )}
-            {/* Share Icon */}
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 10.742l4.636-2.318M8.684 13.258l4.636 2.318M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            {/* iOS Share Icon */}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3-3m0 0l3 3m-3-3v11.25" />
             </svg>
           </button>
         </header>
