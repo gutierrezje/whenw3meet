@@ -573,7 +573,7 @@ function EventPage() {
         <div 
           onMouseUp={onMouseUpGrid}
           onMouseLeave={onMouseUpGrid}
-          className="bg-zinc-950/20 border border-zinc-900 rounded-xl p-3 touch-none"
+          className="bg-zinc-950/20 border border-zinc-900 rounded-xl p-3"
         >
           <div className="grid grid-cols-[60px_1fr] gap-1">
             {/* Header dates row */}
@@ -620,6 +620,8 @@ function EventPage() {
                             onTouchMove={onTouchMoveGrid}
                             onTouchEnd={onTouchEndGrid}
                             className={`h-8 rounded-md border border-zinc-800/85 cursor-pointer transition-colors ${
+                              currentUser ? "touch-none" : ""
+                            } ${
                               isSelected 
                                 ? "bg-emerald-500 border-emerald-400/30 shadow-inner" 
                                 : "bg-zinc-950/40 hover:bg-zinc-900/50"
