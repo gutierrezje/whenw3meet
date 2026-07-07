@@ -96,7 +96,7 @@ function CreateEventPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-      <div className="w-full max-w-[400px] bg-[#121214] border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+      <div className="w-full max-w-[400px] bg-[#121214]/80 backdrop-blur-md border border-zinc-800/60 rounded-2xl p-6 shadow-2xl">
         <h1 className="text-2xl font-bold text-center text-zinc-100 mt-2 mb-1">Create an event</h1>
         <p className="text-xs text-zinc-400 text-center mb-6">Set the details and pick some times for your group to choose from.</p>
         
@@ -469,7 +469,7 @@ function EventPage() {
 
   return (
     <div className="flex flex-col items-center px-4 py-4 select-none">
-      <div className="w-full max-w-[400px] bg-[#121214] border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+      <div className="w-full max-w-[400px] bg-[#121214]/80 backdrop-blur-md border border-zinc-800/60 rounded-2xl p-5 shadow-2xl">
         
         {/* Toggle Switch */}
         <div className="bg-zinc-950 p-1 rounded-xl flex mb-5 border border-zinc-900">
@@ -745,9 +745,14 @@ function EventPage() {
 export function App() {
   return (
     <Router>
-      <main className="min-h-screen bg-[#0a0a0c] text-white flex flex-col">
+      <main 
+        className="min-h-screen text-white flex flex-col relative overflow-hidden"
+        style={{
+          background: "radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 45%), radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 45%), #09090b"
+        }}
+      >
         {/* Header matching mockup */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900 bg-[#0c0c0e]">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-900/60 bg-[#0c0c0e]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
             <button className="text-zinc-400 hover:text-zinc-200" type="button">
               {/* Menu Hamburger */}
@@ -767,7 +772,7 @@ export function App() {
           </button>
         </header>
 
-        <section className="flex-1 flex flex-col justify-center py-6">
+        <section className="flex-1 flex flex-col justify-center py-6 z-10">
           <Routes>
             <Route path="/" element={<CreateEventPage />} />
             <Route path="/:eventId" element={<EventPage />} />
