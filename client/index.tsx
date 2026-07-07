@@ -85,7 +85,8 @@ function CreateEventPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const eventId = await createEvent(eventName, JSON.stringify(selectedDates), startTime, endTime);
+      const sortedDates = [...selectedDates].sort();
+      const eventId = await createEvent(eventName, JSON.stringify(sortedDates), startTime, endTime);
       navigate("/" + eventId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create event");
@@ -284,6 +285,7 @@ function EventPage() {
   let formattedDates: string[] = [];
   try {
     formattedDates = JSON.parse(event.dates);
+    formattedDates.sort();
   } catch (e) {
     formattedDates = [];
   }
