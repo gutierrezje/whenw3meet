@@ -217,6 +217,8 @@ function EventPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"paint" | "heatmap">("paint");
+  const [selectedHeatmapSlot, setSelectedHeatmapSlot] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   if (events === undefined || availabilities === undefined) {
     return (
@@ -308,6 +310,13 @@ function EventPage() {
     }
   }
 
+  // Copy URL to Clipboard
+  function handleCopyLink() {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   // Grid Drag/Touch controls
   function handleStartSelection(slotKey: string) {
     if (!currentUser || activeTab !== "paint") return;
@@ -371,6 +380,46 @@ function EventPage() {
     setIsDragSelecting(null);
   }
 
+  // Calculate active detail slot for Group Heatmap card
+  const activeDetailSlot = selectedHeatmapSlot || (formattedDates.length > 0 && slots.length > 0 ? `${formattedDates[0]}T${slots[0]}` : null);
+  
+  let displayTitle = "";
+  let availableCount = 0;
+  let totalCount = 0;
+  const availableUsers: string[] = [];
+  const busyUsers: string[] = [];
+
+  if (activeDetailSlot) {
+    const [slotDate, slotTime] = activeDetailSlot.split("T");
+    const d = new Date(slotDate + "T00:00:00");
+    const formattedDate = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase();
+    const [hStr, mStr] = slotTime.split(":");
+    const h = Number(hStr);
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    const formattedTime = `${String(h12).padStart(2, "0")}:${mStr} ${period}`;
+    displayTitle = `${formattedDate}, ${formattedTime}`;
+
+    const eventAvails = availabilities?.filter((a) => a.eventId === eventId) || [];
+    totalCount = eventAvails.length;
+
+    eventAvails.forEach((a) => {
+      let isAvailable = false;
+      try {
+        const slotsMap = JSON.parse(a.slots);
+        isAvailable = !!slotsMap[activeDetailSlot];
+      } catch (err) {
+        isAvailable = false;
+      }
+      if (isAvailable) {
+        availableUsers.push(a.userName);
+      } else {
+        busyUsers.push(a.userName);
+      }
+    });
+    availableCount = availableUsers.length;
+  }
+
   return (
     <div className="flex flex-col items-center px-4 py-4 select-none">
       <div className="w-full max-w-[400px] bg-[#121214] border border-zinc-800 rounded-2xl p-5 shadow-2xl">
@@ -417,7 +466,7 @@ function EventPage() {
         </div>
 
         {/* Login Form Panel */}
-        {!currentUser && (
+        {!currentUser && activeTab === "paint" && (
           <div className="bg-[#18181c] border border-zinc-800/80 rounded-xl p-4 mb-5">
             <h3 className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-3">Sign in to edit availability</h3>
             <form onSubmit={(e) => void handleLogin(e)} className="flex gap-2">
@@ -452,7 +501,7 @@ function EventPage() {
         )}
 
         {/* Sign in status */}
-        {currentUser && (
+        {currentUser && activeTab === "paint" && (
           <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl px-4 py-2.5 mb-5 flex items-center justify-between">
             <span className="text-[11px] text-zinc-400">
               Editing as: <strong className="text-zinc-200">{currentUser.name}</strong>
@@ -477,39 +526,40 @@ function EventPage() {
           onMouseLeave={onMouseUpGrid}
           className="bg-zinc-950/20 border border-zinc-900 rounded-xl p-3"
         >
-          {activeTab === "paint" ? (
-            <div className="grid grid-cols-[60px_1fr] gap-1">
-              {/* Header dates row */}
-              <div></div>
-              <div className="grid grid-flow-col gap-1 text-center">
-                {formattedDates.map((dateStr) => {
-                  const d = new Date(dateStr + "T00:00:00");
-                  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 3).toUpperCase();
-                  const dayNum = d.getDate();
-                  return (
-                    <div key={dateStr} className="text-zinc-500 text-[9px] uppercase font-bold py-1">
-                      <div>{weekday}</div>
-                      <div className="text-zinc-300 text-xs font-bold">{dayNum}</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Grid rows */}
-              {slots.map((slotTime) => {
-                const [h, m] = slotTime.split(":").map(Number);
-                const period = h >= 12 ? "PM" : "AM";
-                const h12 = h % 12 === 0 ? 12 : h % 12;
-                const displayTime = `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
-
+          <div className="grid grid-cols-[60px_1fr] gap-1">
+            {/* Header dates row */}
+            <div></div>
+            <div className="grid grid-flow-col gap-1 text-center">
+              {formattedDates.map((dateStr) => {
+                const d = new Date(dateStr + "T00:00:00");
+                const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 3).toUpperCase();
+                const dayNum = d.getDate();
                 return (
-                  <div key={slotTime} className="contents">
-                    <div className="text-[9px] font-mono text-zinc-500 text-right pr-2 self-center">
-                      {displayTime}
-                    </div>
-                    <div className="grid grid-flow-col gap-1">
-                      {formattedDates.map((dateStr) => {
-                        const cellKey = `${dateStr}T${slotTime}`;
+                  <div key={dateStr} className="text-zinc-500 text-[9px] uppercase font-bold py-1">
+                    <div>{weekday}</div>
+                    <div className="text-zinc-300 text-xs font-bold">{dayNum}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Grid rows */}
+            {slots.map((slotTime) => {
+              const [h, m] = slotTime.split(":").map(Number);
+              const period = h >= 12 ? "PM" : "AM";
+              const h12 = h % 12 === 0 ? 12 : h % 12;
+              const displayTime = `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+
+              return (
+                <div key={slotTime} className="contents">
+                  <div className="text-[9px] font-mono text-zinc-500 text-right pr-2 self-center">
+                    {displayTime}
+                  </div>
+                  <div className="grid grid-flow-col gap-1">
+                    {formattedDates.map((dateStr) => {
+                      const cellKey = `${dateStr}T${slotTime}`;
+                      
+                      if (activeTab === "paint") {
                         const isSelected = !!paintedSlots[cellKey];
                         return (
                           <div
@@ -520,24 +570,52 @@ function EventPage() {
                             onTouchStart={(e) => onTouchStartCell(e, cellKey)}
                             onTouchMove={onTouchMoveGrid}
                             onTouchEnd={onTouchEndGrid}
-                            className={`h-8 rounded-md border border-zinc-800/80 cursor-pointer transition-colors ${
+                            className={`h-8 rounded-md border border-zinc-800/85 cursor-pointer transition-colors ${
                               isSelected 
                                 ? "bg-emerald-500 border-emerald-400/30 shadow-inner" 
                                 : "bg-zinc-950/40 hover:bg-zinc-900/50"
                             }`}
                           />
                         );
-                      })}
-                    </div>
+                      } else {
+                        const eventAvails = availabilities?.filter((a) => a.eventId === eventId) || [];
+                        const activeUsers = eventAvails.filter((a) => {
+                          try {
+                            const slotsMap = JSON.parse(a.slots);
+                            return !!slotsMap[cellKey];
+                          } catch (err) {
+                            return false;
+                          }
+                        });
+                        const ratio = eventAvails.length > 0 ? activeUsers.length / eventAvails.length : 0;
+                        
+                        let opacityClass = "bg-zinc-950/40 border-zinc-800/80";
+                        if (ratio > 0) {
+                          if (ratio <= 0.25) opacityClass = "bg-emerald-500/20 border-emerald-500/10";
+                          else if (ratio <= 0.5) opacityClass = "bg-emerald-500/40 border-emerald-500/20";
+                          else if (ratio <= 0.75) opacityClass = "bg-emerald-500/70 border-emerald-500/40";
+                          else if (ratio < 1) opacityClass = "bg-emerald-500/90 border-emerald-500/60";
+                          else opacityClass = "bg-emerald-500 border-emerald-400/40";
+                        }
+                        
+                        const isDetailSelected = cellKey === activeDetailSlot;
+                        const ringClass = isDetailSelected ? "ring-2 ring-indigo-500 z-10 scale-[1.05]" : "";
+                        
+                        return (
+                          <button
+                            key={cellKey}
+                            onClick={() => setSelectedHeatmapSlot(cellKey)}
+                            className={`h-8 rounded-md border cursor-pointer transition-all ${opacityClass} ${ringClass}`}
+                            type="button"
+                          />
+                        );
+                      }
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-zinc-500 text-xs font-medium">
-              📊 Heatmap results will be wired up in Step 4.
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Save button and alerts */}
@@ -553,6 +631,61 @@ function EventPage() {
               type="button"
             >
               {saving ? "Saving..." : saveSuccess ? "✓ Saved Availability" : "Save Availability"}
+            </button>
+          </div>
+        )}
+
+        {/* Heatmap details card */}
+        {activeTab === "heatmap" && activeDetailSlot && (
+          <div className="bg-[#18181c] border border-zinc-800/80 rounded-xl p-4 mt-5">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <h4 className="text-xs font-mono font-bold text-zinc-300">{displayTitle}</h4>
+                <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">{availableCount} of {totalCount} participants available</p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2.5 text-left">
+              <div>
+                <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Available ({availableCount})</span>
+                <div className="flex flex-wrap gap-1">
+                  {availableUsers.length > 0 ? (
+                    availableUsers.map((u) => (
+                      <span key={u} className="text-[10px] text-emerald-400 bg-emerald-950/20 border border-emerald-900/60 rounded-full px-2.5 py-0.5 font-medium">
+                        {u}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[9px] text-zinc-600 italic">None</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Busy ({busyUsers.length})</span>
+                <div className="flex flex-wrap gap-1">
+                  {busyUsers.length > 0 ? (
+                    busyUsers.map((u) => (
+                      <span key={u} className="text-[10px] text-zinc-400 bg-zinc-900/50 border border-zinc-800 rounded-full px-2.5 py-0.5 font-medium">
+                        {u}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[9px] text-zinc-600 italic">None</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleCopyLink}
+              className="w-full bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-200 font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 mt-4 transition-colors shadow"
+              type="button"
+            >
+              <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              </svg>
+              {copied ? "Link Copied!" : "Copy Share Link"}
             </button>
           </div>
         )}
