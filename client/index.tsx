@@ -750,20 +750,15 @@ export function App() {
       meta.setAttribute("name", "theme-color");
       document.head.appendChild(meta);
     }
-    meta.setAttribute("content", "#0c0c0e");
+    meta.setAttribute("content", "#0a0a0c");
   }, []);
 
   return (
     <Router>
-      <main 
-        className="min-h-screen text-white flex flex-col relative"
-        style={{
-          background: "radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 45%), radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 45%), #09090b"
-        }}
-      >
+      <main className="min-h-screen bg-[#0a0a0c] text-white flex flex-col relative overflow-x-hidden">
         <style>{`
           html, body {
-            background-color: #09090b !important;
+            background-color: #0a0a0c !important;
             margin: 0;
             padding: 0;
           }
