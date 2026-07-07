@@ -29,19 +29,24 @@ function CreateEventPage() {
     { label: "S", num: 29, dateStr: "2023-10-29" },
   ];
 
+  const [error, setError] = useState<string | null>(null);
+
   function toggleDate(dateStr: string) {
-    if (selectedDates.includes(dateStr)) {
-      setSelectedDates(selectedDates.filter((d) => d !== dateStr));
-    } else {
-      setSelectedDates([...selectedDates, dateStr]);
-    }
+    setSelectedDates((prev) =>
+      prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr]
+    );
   }
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     if (!eventName.trim() || selectedDates.length === 0) return;
-    const eventId = await createEvent(eventName, JSON.stringify(selectedDates), startTime, endTime);
-    navigate("/" + eventId);
+    setError(null);
+    try {
+      const eventId = await createEvent(eventName, JSON.stringify(selectedDates), startTime, endTime);
+      navigate("/" + eventId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create event");
+    }
   }
 
   return (
@@ -50,6 +55,12 @@ function CreateEventPage() {
         <h1 className="text-2xl font-bold text-center text-zinc-100 mt-2 mb-1">Create an event</h1>
         <p className="text-xs text-zinc-400 text-center mb-6">Set the details and pick some times for your group to choose from.</p>
         
+        {error && (
+          <div className="bg-red-950/50 border border-red-900 text-red-200 text-xs px-3 py-2 rounded-xl text-center mb-4">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-5">
           <div>
             <label className="block text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5">Event Name</label>
@@ -132,13 +143,25 @@ function CreateEventPage() {
 
 function EventPage() {
   const { eventId } = useParams<{ eventId: string }>();
-  const events = useQuery<Event[]>("events");
-  const event = events?.find((e) => e.id === eventId);
+  const events = useQuery<Event[] | undefined>("events");
 
-  if (!event) {
+  if (events === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
         <p className="text-zinc-500 text-sm">Loading event details...</p>
+      </div>
+    );
+  }
+
+  const event = events.find((e) => e.id === eventId);
+
+  if (!event) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <p className="text-red-500 text-sm font-semibold">Event not found</p>
+        <Link to="/" className="text-zinc-400 hover:text-zinc-200 text-xs mt-4 underline block">
+          Back to home
+        </Link>
       </div>
     );
   }
