@@ -680,7 +680,7 @@ function EventPage() {
               </div>
 
               <div>
-                <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Busy ({busyUsers.length})</span>
+                <span className="block text-[8px] uppercase tracking-wider font-bold text-zinc-500 mb-1">Unavailable ({busyUsers.length})</span>
                 <div className="flex flex-wrap gap-1">
                   {busyUsers.length > 0 ? (
                     busyUsers.map((u) => (
